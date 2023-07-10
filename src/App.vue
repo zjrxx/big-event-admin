@@ -2,6 +2,8 @@
 import { RouterLink, RouterView } from 'vue-router'
 import HelloWorld from './components/HelloWorld.vue'
 
+console.log(123)
+
 // const obj = {
 //   name: 'zs',
 //   age: 18
