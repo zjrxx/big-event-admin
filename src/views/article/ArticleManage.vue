@@ -493,6 +493,10 @@ const handleImageChange = (event) => {
 .search-form {
   margin-bottom: 15px;
 }
+.search-form .el-select {
+  width: 220px; /* 您可以根据需要调整这个值来改变下拉框的宽度 */
+  size: large;
+}
 .avatar-upload-container {
   position: relative;
   width: 178px;
