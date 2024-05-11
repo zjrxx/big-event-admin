@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useUserStore } from '@/stores'
 
 // createRouter 创建路由实例
 // 配置 history 模式
@@ -33,12 +34,15 @@ const router = createRouter({
           component: () => import('@/views/user/UserAvatar.vue')
         },
         {
-          path: '/user/password',
+          path: '/user/userPassword',
           component: () => import('@/views/user/UserPassword.vue')
         }
       ]
     }
   ]
 })
-
+router.beforeEach((to) => {
+  const userStore = useUserStore()
+  if (!userStore.token && to.path !== '/login') return '/login'
+})
 export default router
