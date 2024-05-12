@@ -3,10 +3,7 @@
     <template v-slot:header>
       <div>
         <span>文章管理</span>
-        <el-button
-          type="primary"
-          @click="showAddDrawer = true"
-          style="float: right"
+        <el-button type="primary" @click="showAddDrawer" style="float: right"
           >发布文章</el-button
         >
       </div>
@@ -14,7 +11,7 @@
 
     <!-- 抽屉表单 -->
     <el-drawer
-      title="addOrUpdateDrawerTitle"
+      :title="addOrUpdateDrawerTitle"
       v-model="addOrUpdateDrawerVisible"
       width="50%"
     >
@@ -211,12 +208,6 @@ const articles = ref([])
 // 获取文章列表
 const fetchArticleList = async () => {
   try {
-    // pageNum = currentPage.value
-    // pageSize.value = pageSize.value
-    // cateId = selectedCategoryId.value // 使用选择的分类ID
-    // articleStatus.value = articleStatus.value // 使用选择的文章状态
-
-    //TODO
     const response = await getArticleListService(
       currentPage.value,
       pageSize.value,
@@ -441,12 +432,15 @@ const resetSearchForm = (searchFormData) => {
   searchFormData.selectedCategoryId = ''
   searchFormData.articleStatus = ''
 }
-
-// const editArticle = (row) => {
-//   // 编辑文章逻辑
-//   //编辑文章跟发布文章类似
-//   //首先根据当前行的信息查询文章详情
-// }
+const editArticle = (row) => {
+  addOrUpdateDrawerTitle.value = '编辑文章'
+  articleForm.articleTitle = row.articleTitle
+  articleForm.categoryId = row.cateId
+  articleForm.categoryName = row.categoryName
+  articleForm.articleContent = row.articleContent
+  articleForm.coverImg = row.coverImg
+  addOrUpdateDrawerVisible.value = true
+}
 
 // const deleteArticle = (row) => {
 //   // 删除文章逻辑
