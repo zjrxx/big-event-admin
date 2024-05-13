@@ -94,6 +94,46 @@
         </el-form-item>
       </el-form>
     </el-drawer>
+    <!-- 文章预览抽屉表单 -->
+    <el-drawer
+      title="文章预览"
+      v-model="articleinfoDrawer"
+      direction="rtl"
+      size="50%"
+    >
+      <!-- 添加el-card以展示文章详情 -->
+      <!-- <el-card class="article-preview-card">
+        <div class="card-body"> -->
+      <p class="article-title" style="font-weight: bold">
+        {{ previewArticle.articleTitle }}
+      </p>
+      <p>
+        创建时间: {{ formatDate(previewArticle.createTime) }} <br />
+        分类名称: {{ previewArticle.categoryName }}
+      </p>
+      <!-- </div>
+      </el-card> -->
+
+      <!-- 文章内容展示 -->
+      <div class="article-content">
+        <!-- 文章封面 -->
+        <div
+          class="cover-image"
+          v-if="previewArticle.coverImgBase64 || previewArticle.coverImg"
+        >
+          <img
+            v-if="previewArticle.coverImgBase64"
+            :src="previewArticle.coverImgBase64"
+            alt="文章封面"
+          />
+          <img v-else :src="previewArticle.coverImg" alt="文章封面" />
+        </div>
+        <p v-else>封面图片缺失</p>
+
+        <!-- 文章正文 -->
+        <div class="article-text" v-html="previewArticle.articleContent"></div>
+      </div>
+    </el-drawer>
 
     <!-- 搜索表单  -->
     <el-row class="search-form">
@@ -137,7 +177,16 @@
 
     <!-- 数据表格 -->
     <el-table v-show="true" :data="articles">
-      <el-table-column prop="articleTitle" label="文章标题"></el-table-column>
+      <el-table-column prop="articleTitle" label="文章标题">
+        <template #default="scope">
+          <el-link
+            type="primary"
+            :underline="false"
+            @click="showArticleDrawer(scope.row)"
+            >{{ scope.row.articleTitle }}</el-link
+          >
+        </template>
+      </el-table-column>
       <el-table-column prop="categoryName" label="分类名称"></el-table-column>
       <el-table-column prop="createTime" label="发表时间">
         <template #default="{ row }">
@@ -185,6 +234,40 @@ import {
   deleteArticleService
 } from '@/api/article'
 import { useCategoryStore } from '@/stores'
+// 定义预览文章的数据对象
+const previewArticle = reactive({
+  articleTitle: '',
+  createTime: '',
+  categoryId: '',
+  categoryName: '',
+  coverImgBase64: '',
+  coverImg: '',
+  articleContent: ''
+})
+
+// 完善展示文章详情抽屉的方法
+function showArticleDrawer(row) {
+  // 设置抽屉可见
+  articleinfoDrawer.value = true
+
+  // 将文章信息赋值给预览对象
+  previewArticle.articleTitle = row.articleTitle
+  previewArticle.createTime = row.createTime
+  previewArticle.categoryId =
+    categories.find((category) => category.categoryName === row.categoryName)
+      ?.categoryId || ''
+  previewArticle.categoryName = row.categoryName
+  previewArticle.coverImgBase64 = row.coverImgBase64 || '' // 假设原始数据中可能包含base64编码的封面图片
+  previewArticle.coverImg = row.coverImg // 原始封面图片链接
+  previewArticle.articleContent = row.articleContent
+}
+
+// 确保formatDate方法可用，如果未在当前作用域定义，请补充定义
+// const formatDate = (dateTimeStr) => {
+//   const date = new Date(dateTimeStr);
+//   return `${date.getFullYear()}-${('0' + (date.getMonth() + 1)).slice(-2)}-${('0' + date.getDate()).slice(-2)} ${('0' + date.getHours()).slice(-2)}:${('0' + date.getMinutes()).slice(-2)}:${('0' + date.getSeconds()).slice(-2)}`;
+// };
+
 //展示抽屉框
 function showAddDrawer() {
   addOrUpdateDrawerTitle.value = '发布文章'
@@ -193,6 +276,16 @@ function showAddDrawer() {
   articleForm.articleContent = ''
   addOrUpdateDrawerVisible.value = true
 }
+//展示文章详情抽屉框
+// function showArticleDrawer(row) {
+//   // addOrUpdateDrawerTitle.value = '修改文章'
+//   // articleForm.articleTitle = row.articleTitle
+//   // articleForm.categoryId = row.categoryId
+//   // articleForm.articleContent = row.articleContent
+//   // articleForm.id = row.id
+
+//   articleinfoDrawer.value = true
+// }
 
 //修改时间展示
 const formatDate = (dateTimeStr) => {
@@ -297,6 +390,7 @@ onMounted(async () => {
 })
 const addOrUpdateDrawerTitle = ref('发布文章')
 const addOrUpdateDrawerVisible = ref(false)
+const articleinfoDrawer = ref(false)
 const articleFormRef = ref(null)
 const articleForm = reactive({
   articleTitle: '',
@@ -641,5 +735,52 @@ const handleImageChange = (event) => {
 
 .upload-overlay:hover {
   opacity: 1;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.text {
+  font-size: 14px;
+}
+
+.item {
+  margin-bottom: 18px;
+}
+
+.box-card {
+  width: 480px;
+}
+
+.article-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.cover-image {
+  /* 限制图片的最大宽度为抽屉的80%，可根据实际情况调整 */
+  max-width: 20%;
+  /* 保持图片容器与图片的宽高比 */
+  position: relative;
+  overflow: hidden;
+}
+
+.cover-image img {
+  /* 自动调整图片宽度以适应容器，保持纵横比 */
+  width: 100%;
+  height: auto;
+  /* 保持图片的纵横比并居中 */
+  object-fit: cover;
+
+  /* 可选：为图片添加一个最小高度，防止内容过少时图片过小 */
+  min-height: 200px; /* 根据需求调整 */
+}
+.article-text {
+  /* 确保正文部分也靠左 */
+  text-align: left;
 }
 </style>
