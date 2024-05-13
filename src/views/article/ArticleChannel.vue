@@ -81,8 +81,8 @@ import {
   addArticleCategoryService,
   deleteArticleCategoryService,
   updateArticleCategoryService,
-  getArticleCategoryListService,
-  getArticleCategoryService
+  getArticleCategoryListService
+  // getArticleCategoryService
 } from '@/api/articleCategory'
 
 const categories = ref([])
