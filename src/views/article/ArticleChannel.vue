@@ -118,7 +118,7 @@ function showAddDialog() {
   categoryFormData.categoryAlias = ''
   addOrUpdateDialogVisible.value = true
 }
-
+//ss
 // async function submitCategoryForm() {
 //   await new Promise((resolve) => {
 //     categoryFormRef.value.validate((valid) => {
@@ -165,7 +165,7 @@ async function submitCategoryForm() {
           // 假设addArticleCategoryService返回的是包含新创建分类信息的对象，其中包含id
         } else {
           // 现在categoryFormData中已包含id，直接调用更新服务
-          getArticleCategoryService(categoryFormData.categoryId)
+          //getArticleCategoryService(categoryFormData.categoryId)
           await updateArticleCategoryService(categoryFormData)
           ElMessage.success('更新成功')
         }

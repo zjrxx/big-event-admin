@@ -52,6 +52,14 @@
                   : ''
               }"
             >
+              <!-- 预览图片容器，覆盖在上传框内 -->
+              <template v-if="typeof articleForm.coverImg === 'string'">
+                <img
+                  :src="articleForm.coverImg"
+                  style="width: 100%; height: auto; object-fit: cover"
+                />
+              </template>
+              <!-- 如果没有封面，显示选择按钮 -->
               <div
                 v-if="!articleForm.coverImgBase64"
                 class="upload-overlay"
@@ -61,6 +69,7 @@
               </div>
             </div>
           </div>
+
           <input
             type="file"
             ref="coverImgInput"
@@ -152,11 +161,11 @@
       <el-pagination
         @size-change="handleSizeChange"
         @current-change="handleCurrentChange"
+        style="margin-top: 20px; justify-content: flex-end"
         :current-page="currentPage"
-        :page-sizes="[100, 200, 300, 400]"
-        :page-size="100"
-        layout="total, sizes, prev, pager, next, jumper"
-        :total="400"
+        :page-sizes="[2, 3, 4, 5, 10]"
+        layout="jumper,total, sizes, prev, pager, next"
+        :total="total"
       >
       </el-pagination>
     </div>
@@ -168,7 +177,13 @@ import { ref, reactive, onMounted, nextTick, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { QuillEditor } from '@vueup/vue-quill'
 import '@vueup/vue-quill/dist/vue-quill.snow.css'
-import { addArticleService, getArticleListService } from '@/api/article'
+import {
+  addArticleService,
+  getArticleListService,
+  updateArticleService,
+  updateArticleWithOutCoverService,
+  deleteArticleService
+} from '@/api/article'
 import { useCategoryStore } from '@/stores'
 //展示抽屉框
 function showAddDrawer() {
@@ -215,7 +230,7 @@ const fetchArticleList = async () => {
       searchFormData.articleStatus.value
     )
     articles.value = response.records
-    total.value = response.total
+    total.value = Number(response.total)
   } catch (error) {
     console.error('获取文章列表失败', error)
     ElMessage.error('获取文章列表失败，请稍后重试')
@@ -290,6 +305,8 @@ const articleForm = reactive({
   coverImg: null, // 存储文件对象
   coverImgBase64: '', // 存储图片的base64编码，用于预览
   articleContent: '',
+  articleId: '',
+  isDelete: 0,
   articleStatus: '草稿' // 默认为草稿
 })
 const rules = {
@@ -306,7 +323,7 @@ const rules = {
 }
 
 // const categories = categoryStore.categories
-
+//文章的发布和更新，发布函数
 const submitForm = async () => {
   if (!articleFormRef.value) {
     console.error('Form reference is not properly initialized.')
@@ -327,29 +344,74 @@ const submitForm = async () => {
     await nextTick()
     articleFormRef.value.validate(async (valid) => {
       if (valid) {
-        // 创建FormData实例
-        const formData = new FormData()
+        if (addOrUpdateDrawerTitle.value === '发布文章') {
+          const formData = new FormData()
+          // 添加表单中的其他非文件字段
+          formData.append('articleTitle', articleForm.articleTitle)
+          formData.append('cateId', articleForm.categoryId)
+          formData.append('articleContent', articleForm.articleContent)
+          formData.append('articleStatus', '已发布')
+          formData.append('biz', 'cover')
+          formData.append('id', articleForm.articleId)
+          formData.append('isDelete', articleForm.isDelete)
+          //如果没有重新选择封面，则还用之前的图片
 
-        // 添加表单中的其他非文件字段
-        formData.append('articleTitle', articleForm.articleTitle)
-        formData.append('cateId', articleForm.categoryId)
-        formData.append('articleContent', articleForm.articleContent)
-        formData.append('articleStatus', '已发布')
-        formData.append('biz', 'cover')
-        // 添加文件到FormData（确保在选择文件之后执行此操作）
-        if (articleForm.coverImg instanceof File) {
-          formData.append('coverImg', articleForm.coverImg) // 注意这里的键名应与后端接收的RequestPart匹配
+          // 添加文件到FormData（确保在选择文件之后执行此操作）
+          let coverImgFile
+
+          coverImgFile = articleForm.coverImg // 用户选择了新图片
+          formData.append('coverImg', coverImgFile)
+          try {
+            // 调整为使用formData发送请求
+            const response = await addArticleService(formData) // 确保此函数为异步处理并返回Promise
+            console.log(response)
+            fetchArticleList()
+            addOrUpdateDrawerVisible.value = false
+          } catch (error) {
+            console.error('发布文章失败:', error)
+          }
+          // formData.append('coverImg', articleForm.coverImg) // 注意这里的键名应与后端接收的RequestPart匹配
         } else {
-          throw new Error('No file selected for upload')
-        }
+          const formData = new FormData()
+          // 添加表单中的其他非文件字段
+          formData.append('articleTitle', articleForm.articleTitle)
+          formData.append('cateId', articleForm.categoryId)
+          formData.append('articleContent', articleForm.articleContent)
+          formData.append('articleStatus', '已发布')
+          formData.append('biz', 'cover')
+          formData.append('id', articleForm.articleId)
+          formData.append('isDelete', articleForm.isDelete)
+          //如果没有重新选择封面，则还用之前的图片
 
-        try {
-          // 调整为使用formData发送请求
-          const response = await addArticleService(formData) // 确保此函数为异步处理并返回Promise
-          console.log(response)
-          addOrUpdateDrawerVisible.value = false
-        } catch (error) {
-          console.error('Upload error:', error)
+          // 添加文件到FormData（确保在选择文件之后执行此操作）
+          let coverImgFile
+          if (articleForm.coverImg instanceof File) {
+            coverImgFile = articleForm.coverImg // 用户选择了新图片
+            formData.append('coverImg', coverImgFile)
+            try {
+              // 调整为使用formData发送请求
+              const response = await updateArticleService(formData) // 确保此函数为异步处理并返回Promise
+              console.log(response)
+              fetchArticleList()
+              addOrUpdateDrawerVisible.value = false
+            } catch (error) {
+              console.error('编辑文章失败:', error)
+            }
+            // formData.append('coverImg', articleForm.coverImg) // 注意这里的键名应与后端接收的RequestPart匹配
+          } else {
+            // 用户没有选择新图片，由于此情况下不需要上传图片，所以不需要添加到formData中
+            //那就再换个不用上传图片接口，专门更新其他信息，因为我之前下载图片的方法不行，只能再弄一个接口了
+            try {
+              coverImgFile = articleForm.coverImg
+              formData.append('coverImg', coverImgFile)
+              const response = await updateArticleWithOutCoverService(formData)
+              console.log(response)
+              fetchArticleList()
+              addOrUpdateDrawerVisible.value = false
+            } catch (error) {
+              console.error('编辑文章失败:', error)
+            }
+          }
         }
       }
     })
@@ -357,6 +419,7 @@ const submitForm = async () => {
     console.error('Error during form validation:', error)
   }
 }
+//保存草稿逻辑
 const saveDraft = async () => {
   if (!articleFormRef.value) {
     console.error('Form reference is not properly initialized.')
@@ -377,29 +440,74 @@ const saveDraft = async () => {
     await nextTick()
     articleFormRef.value.validate(async (valid) => {
       if (valid) {
-        // 创建FormData实例
-        const formData = new FormData()
+        if (addOrUpdateDrawerTitle.value === '发布文章') {
+          const formData = new FormData()
+          // 添加表单中的其他非文件字段
+          formData.append('articleTitle', articleForm.articleTitle)
+          formData.append('cateId', articleForm.categoryId)
+          formData.append('articleContent', articleForm.articleContent)
+          formData.append('articleStatus', '草稿')
+          formData.append('biz', 'cover')
+          formData.append('id', articleForm.articleId)
+          formData.append('isDelete', articleForm.isDelete)
+          //如果没有重新选择封面，则还用之前的图片
 
-        // 添加表单中的其他非文件字段
-        formData.append('articleTitle', articleForm.articleTitle)
-        formData.append('cateId', articleForm.categoryId)
-        formData.append('articleContent', articleForm.articleContent)
-        formData.append('articleStatus', '草稿')
-        formData.append('biz', 'cover')
-        // 添加文件到FormData（确保在选择文件之后执行此操作）
-        if (articleForm.coverImg instanceof File) {
-          formData.append('coverImg', articleForm.coverImg) // 注意这里的键名应与后端接收的RequestPart匹配
+          // 添加文件到FormData（确保在选择文件之后执行此操作）
+          let coverImgFile
+
+          coverImgFile = articleForm.coverImg // 用户选择了新图片
+          formData.append('coverImg', coverImgFile)
+          try {
+            // 调整为使用formData发送请求
+            const response = await addArticleService(formData) // 确保此函数为异步处理并返回Promise
+            console.log(response)
+            fetchArticleList()
+            addOrUpdateDrawerVisible.value = false
+          } catch (error) {
+            console.error('发布文章失败:', error)
+          }
+          // formData.append('coverImg', articleForm.coverImg) // 注意这里的键名应与后端接收的RequestPart匹配
         } else {
-          throw new Error('No file selected for upload')
-        }
+          const formData = new FormData()
+          // 添加表单中的其他非文件字段
+          formData.append('articleTitle', articleForm.articleTitle)
+          formData.append('cateId', articleForm.categoryId)
+          formData.append('articleContent', articleForm.articleContent)
+          formData.append('articleStatus', '草稿')
+          formData.append('biz', 'cover')
+          formData.append('id', articleForm.articleId)
+          formData.append('isDelete', articleForm.isDelete)
+          //如果没有重新选择封面，则还用之前的图片
 
-        try {
-          // 调整为使用formData发送请求
-          const response = await addArticleService(formData) // 确保此函数为异步处理并返回Promise
-          console.log(response)
-          showAddDrawer.value = false
-        } catch (error) {
-          console.error('Upload error:', error)
+          // 添加文件到FormData（确保在选择文件之后执行此操作）
+          let coverImgFile
+          if (articleForm.coverImg instanceof File) {
+            coverImgFile = articleForm.coverImg // 用户选择了新图片
+            formData.append('coverImg', coverImgFile)
+            try {
+              // 调整为使用formData发送请求
+              const response = await updateArticleService(formData) // 确保此函数为异步处理并返回Promise
+              console.log(response)
+              fetchArticleList()
+              addOrUpdateDrawerVisible.value = false
+            } catch (error) {
+              console.error('编辑文章失败:', error)
+            }
+            // formData.append('coverImg', articleForm.coverImg) // 注意这里的键名应与后端接收的RequestPart匹配
+          } else {
+            // 用户没有选择新图片，由于此情况下不需要上传图片，所以不需要添加到formData中
+            //那就再换个不用上传图片接口，专门更新其他信息，因为我之前下载图片的方法不行，只能再弄一个接口了
+            try {
+              coverImgFile = articleForm.coverImg
+              formData.append('coverImg', coverImgFile)
+              const response = await updateArticleWithOutCoverService(formData)
+              console.log(response)
+              fetchArticleList()
+              addOrUpdateDrawerVisible.value = false
+            } catch (error) {
+              console.error('编辑文章失败:', error)
+            }
+          }
         }
       }
     })
@@ -407,7 +515,7 @@ const saveDraft = async () => {
     console.error('Error during form validation:', error)
   }
 }
-
+//两个下拉框搜索逻辑
 const search = async () => {
   try {
     // 搜索逻辑
@@ -432,26 +540,32 @@ const resetSearchForm = (searchFormData) => {
   searchFormData.selectedCategoryId = ''
   searchFormData.articleStatus = ''
 }
+//编辑文章逻辑
 const editArticle = (row) => {
   addOrUpdateDrawerTitle.value = '编辑文章'
   articleForm.articleTitle = row.articleTitle
-  articleForm.categoryId = row.cateId
+  articleForm.categoryId = // 注意：您需根据categoryName找到对应的categoryId
+    categories.find((category) => category.categoryName === row.categoryName)
+      ?.categoryId || '' // 如果没找到默认空字符串
   articleForm.categoryName = row.categoryName
   articleForm.articleContent = row.articleContent
   articleForm.coverImg = row.coverImg
+  articleForm.articleId = row.id
+  articleForm.isDelete = row.isDelete
   addOrUpdateDrawerVisible.value = true
 }
-
-// const deleteArticle = (row) => {
-//   // 删除文章逻辑
-// }
+//删除文章
+const deleteArticle = (row) => {
+  deleteArticleService(row.id)
+  fetchArticleList()
+}
 
 // const handleRemoveCover = () => {
 //   articleForm.coverImg = null
 // }
 
 const selectedFile = ref(null)
-
+//选择图片
 const selectImage = () => {
   const input = document.createElement('input')
   input.type = 'file'
